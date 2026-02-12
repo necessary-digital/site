@@ -4,7 +4,14 @@ import { Canvas, type ThreeEvent, useFrame } from "@react-three/fiber";
 import { Environment, Loader, Stats, useGLTF, useTexture } from "@react-three/drei";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Leva, useControls } from "leva";
-import { DoubleSide, Mesh, MeshPhysicalMaterial, Object3D, ShaderMaterial, Vector2 } from "three";
+import {
+  DoubleSide,
+  Mesh,
+  MeshPhysicalMaterial,
+  Object3D,
+  ShaderMaterial,
+  Vector2,
+} from "three";
 
 function GridPlane({
   targetCenterUv,
@@ -47,7 +54,7 @@ function GridPlane({
             uniforms,
             vertexShader: /* glsl */ `
               varying vec2 vUv;
-              
+
               uniform float uEdgeWidth;
               uniform float uEdgeAmp;
               uniform float uCenterRadius;
@@ -73,7 +80,7 @@ function GridPlane({
             `,
             fragmentShader: /* glsl */ `
               varying vec2 vUv;
-              
+
               uniform float uGridScale;
               uniform float uLineWidth;
               uniform float uTime;
@@ -106,17 +113,30 @@ function GridPlane({
   );
 }
 
-function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<number> }) {
-  const helmet = useGLTF("/models/helmet.glb");
-  
+function RubensModel({
+  tubeAngleRef,
+  modelScale,
+  modelPosX,
+  modelPosY,
+  modelPosZ,
+}: {
+  tubeAngleRef: React.MutableRefObject<number>;
+  modelScale: number;
+  modelPosX: number;
+  modelPosY: number;
+  modelPosZ: number;
+}) {
+  const helmet = useGLTF("/models/rubens.glb");
+
   const scene = useMemo(() => helmet.scene.clone(true), [helmet.scene]);
   const modelRef = useRef<Object3D>(null);
   const baseRotation = useMemo(() => ({ x: Math.PI / 8, y: Math.PI / 2 }), []);
+
   const glassMaterial = useMemo(
     () =>
       new MeshPhysicalMaterial({
         thickness: 0.9,
-        roughness: 0.,
+        roughness: 0,
         metalness: 1,
         ior: 1.9,
         clearcoat: 0.1,
@@ -124,25 +144,10 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
         iridescence: 0,
         iridescenceIOR: 0,
         iridescenceThicknessRange: [100, 400],
-        color : "transparent",
+        color: "transparent",
         transparent: true,
-        // opacity: 0.75,
         depthWrite: true,
-        side: DoubleSide,        
-        // transmission: 1,
-        // thickness: 10,
-        // roughness: 0.,
-        // metalness: 0.1,
-        // ior: 1.9,
-        // dispersion: 1,
-        // clearcoat: 0.1,
-        // clearcoatRoughness: 1.1,
-        // // iridescence: 1.1,
-        // // iridescenceIOR: 1,
-        // iridescenceThicknessRange: [100, 400],
-        // color : "transparent",
-        // transparent: true,
-        // depthWrite: true,     
+        side: DoubleSide,
       }),
     [],
   );
@@ -150,7 +155,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   useEffect(() => {
     scene.traverse((object) => {
       if (object instanceof Mesh) {
-        object.scale.set(0.7, 0.7, 0.7);
+        object.scale.set(modelScale, modelScale, modelScale);
         object.material = glassMaterial;
         object.material.needsUpdate = true;
       }
@@ -159,7 +164,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
     return () => {
       glassMaterial.dispose();
     };
-  }, [scene, glassMaterial]);
+  }, [glassMaterial, modelScale, scene]);
 
   useFrame(() => {
     const obj = modelRef.current;
@@ -169,11 +174,9 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   });
 
   return (
-    <primitive
-      ref={modelRef}
-      object={scene}
-      rotation={[baseRotation.x, baseRotation.y, 0]}
-    />
+    <group ref={modelRef} rotation={[baseRotation.x, baseRotation.y, 0]}>
+      <primitive object={scene} position={[modelPosX, modelPosY, modelPosZ]} />
+    </group>
   );
 }
 
@@ -286,7 +289,6 @@ function ImageTube({
     spinVelocityRef.current *= Math.pow(damping, dt * 60);
     spinVelocityRef.current = Math.max(-2.0, Math.min(2.0, spinVelocityRef.current));
 
-    // Smoothly approach target rotation speed scale (used for hover slowdown)
     rotationSpeedScale.current +=
       (rotationSpeedScaleTargetRef.current - rotationSpeedScale.current) *
       rotationSpeedScaleLerpRef.current;
@@ -357,7 +359,7 @@ function ImageTube({
   );
 }
 
-export function FiberScene() {
+export function RubensScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const targetCenterUv = useRef(new Vector2(0.5, 0.5));
   const tubeScrollTarget = useRef(0);
@@ -374,7 +376,11 @@ export function FiberScene() {
     hoverSlowdownLerp,
     tubeRows,
     tubeCols,
-  } = useControls("Scene", {
+    modelScale,
+    modelPosX,
+    modelPosY,
+    modelPosZ,
+  } = useControls("Rubens", {
     showGui: { value: true },
     showStats: { value: process.env.NODE_ENV === "development" },
     baseSpeed: { value: 0.25, min: 0, max: 1.0, step: 0.01 },
@@ -383,25 +389,30 @@ export function FiberScene() {
     hoverSlowdownLerp: { value: 0.12, min: 0.01, max: 0.5, step: 0.01 },
     tubeRows: { value: 5, min: 1, max: 12, step: 1 },
     tubeCols: { value: 3, min: 1, max: 12, step: 1 },
+    modelScale: { value: 0.05, min: 0.005, max: 0.2, step: 0.001 },
+    modelPosX: { value: 0.2, min: -2, max: 2, step: 0.01 },
+    modelPosY: { value: 0.0, min: -2, max: 2, step: 0.01 },
+    modelPosZ: { value: -0.1, min: -2, max: 2, step: 0.01 },
   });
 
   const baseSpeedRef = useRef(0.25);
+  const hoverSlowdownEnabledRef = useRef(true);
+  const hoverSlowdownScaleRef = useRef(0.35);
+  const rotationSpeedScaleTargetRef = useRef(1);
+  const rotationSpeedScaleLerpRef = useRef(0.12);
+
   useEffect(() => {
     baseSpeedRef.current = baseSpeed;
   }, [baseSpeed]);
 
-  const hoverSlowdownEnabledRef = useRef(true);
   useEffect(() => {
     hoverSlowdownEnabledRef.current = hoverSlowdownEnabled;
   }, [hoverSlowdownEnabled]);
 
-  const hoverSlowdownScaleRef = useRef(0.35);
   useEffect(() => {
     hoverSlowdownScaleRef.current = hoverSlowdownScale;
   }, [hoverSlowdownScale]);
 
-  const rotationSpeedScaleTargetRef = useRef(1);
-  const rotationSpeedScaleLerpRef = useRef(0.12);
   useEffect(() => {
     rotationSpeedScaleLerpRef.current = hoverSlowdownLerp;
   }, [hoverSlowdownLerp]);
@@ -521,11 +532,7 @@ export function FiberScene() {
     const cx = 0.5 + (uvX - 0.5) * strength;
     const cy = 0.5 + (uvY - 0.5) * strength;
 
-    targetCenterUv.current.set(
-      Math.min(1, Math.max(0, cx)),
-      Math.min(1, Math.max(0, cy)),
-    );
-
+    targetCenterUv.current.set(Math.min(1, Math.max(0, cx)), Math.min(1, Math.max(0, cy)));
   }, []);
 
   const onPointerLeave = useCallback(() => {
@@ -580,21 +587,21 @@ export function FiberScene() {
             onHoverEnd={onImageHoverEnd}
           />
 
-          <HelmetModel tubeAngleRef={tubeAngle} />
+          <RubensModel
+            tubeAngleRef={tubeAngle}
+            modelScale={modelScale}
+            modelPosX={modelPosX}
+            modelPosY={modelPosY}
+            modelPosZ={modelPosZ}
+          />
         </Suspense>
 
         {showStats && <Stats />}
-        {/* <OrbitControls /> */}
       </Canvas>
 
       <div className="whiteEdgeGradient" aria-hidden="true" />
       {hoveredProject && (
-        <div
-          className="projectTooltip"
-          ref={tooltipElRef}
-          role="status"
-          aria-live="polite"
-        >
+        <div className="projectTooltip" ref={tooltipElRef} role="status" aria-live="polite">
           {hoveredProject}
         </div>
       )}
@@ -607,4 +614,4 @@ export function FiberScene() {
   );
 }
 
-useGLTF.preload("/models/helmet.glb");
+useGLTF.preload("/models/rubens.glb");

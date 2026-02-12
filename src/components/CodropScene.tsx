@@ -606,14 +606,14 @@ export function CodropScene() {
     }
 
     requestSnap();
-  }, []);
+  }, [requestSnap]);
 
   const onPointerLeave = useCallback(() => {
     targetCenterUv.current.set(0.5, 0.5);
     cursorActive.current = false;
     onImageHoverEnd();
     endDrag();
-  }, []);
+  }, [endDrag, onImageHoverEnd]);
 
   const onWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     sphereSpinVelocityY.current += event.deltaY * 0.004;
@@ -624,7 +624,7 @@ export function CodropScene() {
     snapWheelTimeoutRef.current = window.setTimeout(() => {
       if (!isDraggingRef.current) requestSnap();
     }, 140);
-  }, []);
+  }, [requestSnap]);
 
   return (
     <div
