@@ -23,6 +23,12 @@ body {
 	width: 100vw;
 	height: 100vh;
 	background-color: #000000;
+	cursor: none;
+	touch-action: none;
+}
+
+.sceneRoot--light {
+	background: #fff;
 }
 
 .sceneRoot::before {
@@ -345,4 +351,87 @@ body {
 		opacity: 1;
 		transform: translateY(0);
 	}
+}
+
+.sceneRoot--light .whiteEdgeGradient {
+	background: radial-gradient(
+		ellipse at center,
+		rgba(0, 0, 0, 0) 0%,
+		rgba(255, 255, 255, 0) 55%,
+		rgb(255, 255, 255) 100%
+	);
+}
+
+.bottomNav {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 50;
+	display: flex;
+	gap: 8px;
+}
+
+.bottomNav a {
+	text-decoration: none;
+	font-size: 12px;
+	line-height: 1;
+	padding: 10px 12px;
+	border-radius: 9999px;
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	color: rgba(255, 255, 255, 0.92);
+	background: rgba(0, 0, 0, 0.35);
+}
+
+.bottomNav a.isActive {
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.sceneRoot--light .bottomNav a {
+	border: 1px solid rgba(0, 0, 0, 0.18);
+	color: rgba(0, 0, 0, 0.86);
+	background: rgba(255, 255, 255, 0.65);
+}
+
+.sceneRoot--light .bottomNav a.isActive {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.projectTooltip {
+	position: absolute;
+	z-index: 10;
+	pointer-events: none;
+	left: 0;
+	top: 0;
+	padding: 8px 10px;
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.72);
+	color: rgba(255, 255, 255, 0.92);
+	border: 1px solid rgba(255, 255, 255, 0.22);
+	font-size: 12px;
+	line-height: 1;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	user-select: none;
+}
+
+.sceneRoot--light .projectTooltip {
+	background: rgba(255, 255, 255, 0.82);
+	color: rgba(0, 0, 0, 0.86);
+	border: 1px solid rgba(0, 0, 0, 0.14);
+}
+
+.customCursor {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 18px;
+	height: 18px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.9);
+	mix-blend-mode: difference;
+	pointer-events: none;
+	z-index: 30;
+	opacity: 0;
+	transition: opacity 150ms linear;
+	will-change: transform;
 }

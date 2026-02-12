@@ -1,9 +1,10 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Loader, useGLTF, useTexture } from "@react-three/drei";
+import { Canvas, type ThreeEvent, useFrame } from "@react-three/fiber";
+import { Environment, Loader, Stats, useGLTF, useTexture } from "@react-three/drei";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DoubleSide, Mesh, MeshPhysicalMaterial, Object3D, ShaderMaterial, Texture, Vector2 } from "three";
+import { Leva, useControls } from "leva";
+import { DoubleSide, Mesh, MeshPhysicalMaterial, Object3D, ShaderMaterial, Vector2 } from "three";
 
 function GridPlane({
   targetCenterUv,
@@ -38,7 +39,7 @@ function GridPlane({
 
   return (
     <mesh ref={meshRef} position={[0, 0, -5.2]}>
-      <planeGeometry args={[18, 18, 128, 128]} />
+      <planeGeometry args={[18, 18, 512, 512]} />
       <shaderMaterial
         attach="material"
         args={[
@@ -106,7 +107,7 @@ function GridPlane({
 }
 
 function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<number> }) {
-  const helmet = useGLTF("/models/rubens.glb");
+  const helmet = useGLTF("/models/helmet.glb");
   
   const scene = useMemo(() => helmet.scene.clone(true), [helmet.scene]);
   const modelRef = useRef<Object3D>(null);
@@ -114,23 +115,42 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   const glassMaterial = useMemo(
     () =>
       new MeshPhysicalMaterial({
-        color: "#613309",
-        metalness: 0.9,
-        roughness: 0.3,
-        envMapIntensity: 0.1,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.4,
+        thickness: 0.9,
+        roughness: 0.,
+        metalness: 1,
+        ior: 1.9,
+        clearcoat: 0.1,
+        clearcoatRoughness: 1.1,
+        iridescence: 0,
+        iridescenceIOR: 0,
+        iridescenceThicknessRange: [100, 400],
+        color : "transparent",
+        transparent: true,
+        // opacity: 0.75,
+        depthWrite: true,
+        side: DoubleSide,        
+        // transmission: 1,
+        // thickness: 10,
+        // roughness: 0.,
+        // metalness: 0.1,
+        // ior: 1.9,
+        // dispersion: 1,
+        // clearcoat: 0.1,
+        // clearcoatRoughness: 1.1,
+        // // iridescence: 1.1,
+        // // iridescenceIOR: 1,
+        // iridescenceThicknessRange: [100, 400],
+        // color : "transparent",
+        // transparent: true,
+        // depthWrite: true,     
       }),
     [],
   );
 
   useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    const scale = isMobile ? 0.042 : 0.05;
-    
     scene.traverse((object) => {
       if (object instanceof Mesh) {
-        object.scale.set(scale, scale, scale);
+        object.scale.set(0.7, 0.7, 0.7);
         object.material = glassMaterial;
         object.material.needsUpdate = true;
       }
@@ -149,12 +169,11 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   });
 
   return (
-    <group ref={modelRef} rotation={[baseRotation.x, baseRotation.y, 0]}>
-      <primitive
-        object={scene}
-        position={[0.2, 0, -0.1]}
-      />
-    </group>
+    <primitive
+      ref={modelRef}
+      object={scene}
+      rotation={[baseRotation.x, baseRotation.y, 0]}
+    />
   );
 }
 
@@ -163,60 +182,67 @@ function ImageTube({
   spinVelocityRef,
   naturalDirRef,
   tubeAngleRef,
-  onImageHover,
-  onImageClick,
+  rotationSpeedScaleTargetRef,
+  rotationSpeedScaleLerpRef,
+  baseSpeedRef,
+  rows,
+  cols,
+  onHoverStart,
+  onHoverMove,
+  onHoverEnd,
 }: {
   scrollTargetRef: React.MutableRefObject<number>;
   spinVelocityRef: React.MutableRefObject<number>;
   naturalDirRef: React.MutableRefObject<number>;
   tubeAngleRef: React.MutableRefObject<number>;
-  onImageHover: (projectName: string | null, texture: Texture | null, imageUrl: string | null) => void;
-  onImageClick: (projectName: string, imageUrl: string, textureIndex: number) => void;
+  rotationSpeedScaleTargetRef: React.MutableRefObject<number>;
+  rotationSpeedScaleLerpRef: React.MutableRefObject<number>;
+  baseSpeedRef: React.MutableRefObject<number>;
+  rows: number;
+  cols: number;
+  onHoverStart: (projectName: string, event: ThreeEvent<PointerEvent>) => void;
+  onHoverMove: (event: ThreeEvent<PointerEvent>) => void;
+  onHoverEnd: () => void;
 }) {
   const groupRef = useRef<Object3D>(null);
   const rowGroupRefs = useRef<Array<Object3D | null>>([]);
   const scrollCurrent = useRef(0);
   const angle = useRef(0);
-  const isHovering = useRef(false);
-  const speedMultiplier = useRef(1);
+  const rotationSpeedScale = useRef(1);
 
   const imageUrls = useMemo(
     () => [
-      "/tube/img1.jpg",
-      "/tube/img3.jpg",
-      "/tube/img2.jpg",
-      "/tube/img4.jpg",
-      "/tube/img5.jpg",
-      "/tube/img6.jpg",
-      "/tube/img9.jpg",
-    ],
-    [],
-  );
-
-  const projectNames = useMemo(
-    () => [
-      "PROJECT ALPHA",
-      "PROJECT BETA",
-      "PROJECT GAMMA",
-      "PROJECT DELTA",
-      "PROJECT EPSILON",
-      "PROJECT ZETA",
-      "PROJECT ETA",
+      "/tube/im1.jpg",
+      "/tube/im3.jpg",
+      "/tube/im2.jpg",
+      "/tube/im4.jpg",
+      "/tube/im5.jpg",
+      "/tube/im6.jpg",
+      "/tube/im7.jpg",
+      "/tube/im8.jpg",
+      "/tube/im9.jpg",
     ],
     [],
   );
 
   const textures = useTexture(imageUrls);
 
-  const handleHover = useCallback((projectName: string | null, textureIndex: number | null) => {
-    isHovering.current = projectName !== null;
-    const texture = textureIndex !== null ? textures[textureIndex] : null;
-    const imageUrl = textureIndex !== null ? imageUrls[textureIndex] : null;
-    onImageHover(projectName, texture, imageUrl);
-  }, [onImageHover, textures, imageUrls]);
+  const projectNames = useMemo(() => {
+    const fileToName: Record<string, string> = {
+      "/tube/im1.jpg": "Project 1",
+      "/tube/im2.jpg": "Project 2",
+      "/tube/im3.jpg": "Project 3",
+      "/tube/im4.jpg": "Project 4",
+      "/tube/im5.jpg": "Project 5",
+      "/tube/im6.jpg": "Project 6",
+      "/tube/im7.jpg": "Project 7",
+      "/tube/im8.jpg": "Project 8",
+      "/tube/im9.jpg": "Project 9",
+    };
 
-  const cols = 6;
-  const rows = 3;
+    return imageUrls.map((url) => fileToName[url] ?? url);
+  }, [imageUrls]);
+
   const radius = 4;
   const tileW = 0.72;
   const tileH = 1;
@@ -256,32 +282,24 @@ function ImageTube({
       scrollTargetRef.current += loopHeight;
     }
 
-    // Lerp du multiplicateur de vitesse vers 0.05 si hover, sinon vers 1
-    const targetMultiplier = isHovering.current ? 0.05 : 1;
-    speedMultiplier.current += (targetMultiplier - speedMultiplier.current) * 0.1;
-
     const damping = 0.92;
     spinVelocityRef.current *= Math.pow(damping, dt * 60);
     spinVelocityRef.current = Math.max(-2.0, Math.min(2.0, spinVelocityRef.current));
 
-    const baseSpeed = naturalDirRef.current * 0.25 * speedMultiplier.current;
-    angle.current += (baseSpeed + spinVelocityRef.current * speedMultiplier.current) * dt;
+    // Smoothly approach target rotation speed scale (used for hover slowdown)
+    rotationSpeedScale.current +=
+      (rotationSpeedScaleTargetRef.current - rotationSpeedScale.current) *
+      rotationSpeedScaleLerpRef.current;
+
+    const scaledDt = dt * rotationSpeedScale.current;
+
+    const baseSpeed = naturalDirRef.current * baseSpeedRef.current;
+    angle.current += (baseSpeed + spinVelocityRef.current) * scaledDt;
+
     tubeAngleRef.current = angle.current;
 
     const group = groupRef.current;
     if (!group) return;
-    
-    // // Animation de dispersion
-    // if (isDispersing) {
-    //   group.scale.x += (0.01 - group.scale.x) * 0.08;
-    //   group.scale.y += (0.01 - group.scale.y) * 0.08;
-    //   group.scale.z += (0.01 - group.scale.z) * 0.08;
-    // } else {
-    //   group.scale.x += (1 - group.scale.x) * 0.08;
-    //   group.scale.y += (1 - group.scale.y) * 0.08;
-    //   group.scale.z += (1 - group.scale.z) * 0.08;
-    // }
-    
     group.position.y = -scrollCurrent.current;
 
     for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
@@ -308,15 +326,25 @@ function ImageTube({
             const z = Math.sin(theta) * radius;
             const ry = -(theta + Math.PI / 2);
             const texIndex = (baseRow * cols + col) % imageUrls.length;
+            const projectName = projectNames[texIndex] ?? "";
 
             return (
-              <mesh 
-                key={col} 
-                position={[x, 0, z]} 
+              <mesh
+                key={col}
+                position={[x, 0, z]}
                 rotation={[0, ry, 0]}
-                onPointerEnter={() => handleHover(projectNames[texIndex], texIndex)}
-                onPointerLeave={() => handleHover(null, null)}
-                onClick={() => onImageClick(projectNames[texIndex], imageUrls[texIndex], texIndex)}
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                  onHoverStart(projectName, e);
+                }}
+                onPointerMove={(e) => {
+                  e.stopPropagation();
+                  onHoverMove(e);
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation();
+                  onHoverEnd();
+                }}
               >
                 <planeGeometry args={[tileW, tileH]} />
                 <meshBasicMaterial map={textures[texIndex]} toneMapped={false} side={DoubleSide} />
@@ -330,23 +358,148 @@ function ImageTube({
 }
 
 export function FiberScene() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const targetCenterUv = useRef(new Vector2(0.5, 0.5));
   const tubeScrollTarget = useRef(0);
   const tubeSpinVelocity = useRef(0);
   const tubeNaturalDir = useRef(1);
   const tubeAngle = useRef(0);
+
+  const {
+    showGui,
+    showStats,
+    baseSpeed,
+    hoverSlowdownEnabled,
+    hoverSlowdownScale,
+    hoverSlowdownLerp,
+    tubeRows,
+    tubeCols,
+  } = useControls("Scene", {
+    showGui: { value: true },
+    showStats: { value: process.env.NODE_ENV === "development" },
+    baseSpeed: { value: 0.25, min: 0, max: 1.0, step: 0.01 },
+    hoverSlowdownEnabled: { value: true },
+    hoverSlowdownScale: { value: 0.35, min: 0.05, max: 1.0, step: 0.05 },
+    hoverSlowdownLerp: { value: 0.12, min: 0.01, max: 0.5, step: 0.01 },
+    tubeRows: { value: 5, min: 1, max: 12, step: 1 },
+    tubeCols: { value: 3, min: 1, max: 12, step: 1 },
+  });
+
+  const baseSpeedRef = useRef(0.25);
+  baseSpeedRef.current = baseSpeed;
+
+  const hoverSlowdownEnabledRef = useRef(true);
+  hoverSlowdownEnabledRef.current = hoverSlowdownEnabled;
+
+  const hoverSlowdownScaleRef = useRef(0.35);
+  hoverSlowdownScaleRef.current = hoverSlowdownScale;
+
+  const rotationSpeedScaleTargetRef = useRef(1);
+  const rotationSpeedScaleLerpRef = useRef(0.12);
+  rotationSpeedScaleLerpRef.current = hoverSlowdownLerp;
+
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
-  const [hoveredImageUrl, setHoveredImageUrl] = useState<string | null>(null);
-  const [previousImageUrl, setPreviousImageUrl] = useState<string | null>(null);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  const [selectedProject, setSelectedProject] = useState<{name: string, imageUrl: string, index: number} | null>(null);
-  const [showOverlay, setShowOverlay] = useState(false);
+
+  const tooltipElRef = useRef<HTMLDivElement | null>(null);
+  const tooltipTarget = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const tooltipCurrent = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const tooltipRaf = useRef<number | null>(null);
+
+  const cursorElRef = useRef<HTMLDivElement | null>(null);
+  const cursorTarget = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const cursorCurrent = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const cursorActive = useRef(false);
+  const cursorRaf = useRef<number | null>(null);
+
+  const setTooltipFromClientPoint = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    tooltipTarget.current = { x: clientX - rect.left, y: clientY - rect.top };
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const el = tooltipElRef.current;
+      if (el) {
+        const lerp = 0.18;
+        tooltipCurrent.current.x += (tooltipTarget.current.x - tooltipCurrent.current.x) * lerp;
+        tooltipCurrent.current.y += (tooltipTarget.current.y - tooltipCurrent.current.y) * lerp;
+
+        const x = tooltipCurrent.current.x + 12;
+        const y = tooltipCurrent.current.y - 18;
+        el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+      }
+
+      tooltipRaf.current = requestAnimationFrame(tick);
+    };
+
+    tooltipRaf.current = requestAnimationFrame(tick);
+    return () => {
+      if (tooltipRaf.current != null) cancelAnimationFrame(tooltipRaf.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const el = cursorElRef.current;
+      if (el) {
+        const lerp = 0.14;
+        cursorCurrent.current.x += (cursorTarget.current.x - cursorCurrent.current.x) * lerp;
+        cursorCurrent.current.y += (cursorTarget.current.y - cursorCurrent.current.y) * lerp;
+
+        const x = cursorCurrent.current.x + 8;
+        const y = cursorCurrent.current.y + 8;
+        el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%)`;
+        el.style.opacity = cursorActive.current ? "1" : "0";
+      }
+
+      cursorRaf.current = requestAnimationFrame(tick);
+    };
+
+    cursorRaf.current = requestAnimationFrame(tick);
+    return () => {
+      if (cursorRaf.current != null) cancelAnimationFrame(cursorRaf.current);
+    };
+  }, []);
+
+  const onImageHoverStart = useCallback(
+    (projectName: string, event: ThreeEvent<PointerEvent>) => {
+      setHoveredProject(projectName);
+      setTooltipFromClientPoint(event.nativeEvent.clientX, event.nativeEvent.clientY);
+
+      if (hoverSlowdownEnabledRef.current) {
+        rotationSpeedScaleTargetRef.current = hoverSlowdownScaleRef.current;
+      }
+
+      tooltipCurrent.current = { ...tooltipTarget.current };
+    },
+    [setTooltipFromClientPoint],
+  );
+
+  const onImageHoverMove = useCallback(
+    (event: ThreeEvent<PointerEvent>) => {
+      setTooltipFromClientPoint(event.nativeEvent.clientX, event.nativeEvent.clientY);
+    },
+    [setTooltipFromClientPoint],
+  );
+
+  const onImageHoverEnd = useCallback(() => {
+    setHoveredProject(null);
+    rotationSpeedScaleTargetRef.current = 1;
+  }, []);
+
+  const onPointerEnter = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    cursorTarget.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    cursorCurrent.current = { ...cursorTarget.current };
+    cursorActive.current = true;
+  }, []);
 
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
-    setCursorPos({ x: event.clientX, y: event.clientY });
+    cursorTarget.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
 
     const nx = (event.clientX - rect.left) / rect.width;
     const ny = (event.clientY - rect.top) / rect.height;
@@ -369,6 +522,8 @@ export function FiberScene() {
 
   const onPointerLeave = useCallback(() => {
     targetCenterUv.current.set(0.5, 0.5);
+    onImageHoverEnd();
+    cursorActive.current = false;
   }, []);
 
   const onWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
@@ -379,69 +534,19 @@ export function FiberScene() {
     else if (event.deltaY > 0) tubeNaturalDir.current = 1;
   }, []);
 
-  const handleImageHover = useCallback((projectName: string | null, _texture: Texture | null, imageUrl: string | null) => {
-    setHoveredProject(projectName);
-    if (imageUrl !== hoveredImageUrl) {
-      setPreviousImageUrl(hoveredImageUrl);
-      setHoveredImageUrl(imageUrl);
-    }
-  }, [hoveredImageUrl]);
-
-  const handleImageClick = useCallback((projectName: string, imageUrl: string, textureIndex: number) => {
-    setSelectedProject({ name: projectName, imageUrl, index: textureIndex });
-    // Attendre que la dispersion soit visible avant d'afficher l'overlay
-    setTimeout(() => {
-      setShowOverlay(true);
-    }, 1500);
-  }, []);
-
-  const handleCloseProject = useCallback(() => {
-    setShowOverlay(false);
-    setTimeout(() => {
-      setSelectedProject(null);
-    }, 1200); // Attendre la fin de l'animation de retour
-  }, []);
-
-  // Nettoyer previousImageUrl après la transition
-  useEffect(() => {
-    if (hoveredImageUrl && previousImageUrl) {
-      const timer = setTimeout(() => {
-        setPreviousImageUrl(null);
-      }, 2000); // Correspond à la durée de l'animation
-      return () => clearTimeout(timer);
-    }
-  }, [hoveredImageUrl, previousImageUrl]);
-
   return (
     <div
       className="sceneRoot"
+      ref={containerRef}
+      onPointerEnter={onPointerEnter}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
       onWheel={onWheel}
     >
-      <h1 className="main-title">RUBENS EXPERIENCE</h1>
-      
-      {previousImageUrl && (
-        <div 
-          className="background-image-blur background-image-previous"
-          style={{ backgroundImage: `url(${previousImageUrl})` }}
-        />
-      )}
-      {hoveredImageUrl && (
-        <div 
-          className="background-image-blur background-image-current"
-          style={{ backgroundImage: `url(${hoveredImageUrl})` }}
-        />
-      )}
-
       <Canvas
-        camera={{ position: [0, 0, 6], fov: 50 }}
-        gl={{ antialias: true, powerPreference: "high-performance", alpha: true }}
-        dpr={[1, 2]}
-        frameloop="always"
-        onCreated={({ camera, gl }) => {
+        camera={{ position: [0, 0, 6.5], fov: 50 }}
+        onCreated={({ camera }) => {
           camera.lookAt(0, 0, 0);
-          gl.setClearColor(0x000000, 0);
         }}
       >
         <Suspense fallback={null}>
@@ -450,64 +555,48 @@ export function FiberScene() {
 
           <Environment preset="studio" blur={10.5} />
 
+          <GridPlane targetCenterUv={targetCenterUv} />
+
           <ImageTube
             scrollTargetRef={tubeScrollTarget}
             spinVelocityRef={tubeSpinVelocity}
             naturalDirRef={tubeNaturalDir}
             tubeAngleRef={tubeAngle}
-            onImageHover={handleImageHover}
-            onImageClick={handleImageClick}
+            rotationSpeedScaleTargetRef={rotationSpeedScaleTargetRef}
+            rotationSpeedScaleLerpRef={rotationSpeedScaleLerpRef}
+            baseSpeedRef={baseSpeedRef}
+            rows={tubeRows}
+            cols={tubeCols}
+            onHoverStart={onImageHoverStart}
+            onHoverMove={onImageHoverMove}
+            onHoverEnd={onImageHoverEnd}
           />
 
           <HelmetModel tubeAngleRef={tubeAngle} />
         </Suspense>
+
+        {showStats && <Stats />}
+        {/* <OrbitControls /> */}
       </Canvas>
 
-      {selectedProject && (
-        <div 
-          className={`project-single-view ${showOverlay ? 'visible' : 'hidden'}`}
-          style={{ backgroundImage: `url(${selectedProject.imageUrl})` }}
-        >
-          <button className="close-button" onClick={handleCloseProject}>✕</button>
-          <div className="project-content">
-            <img src={selectedProject.imageUrl} alt={selectedProject.name} />
-            <h1>{selectedProject.name}</h1>
-            <p>Description du projet {selectedProject.name}</p>
-          </div>
-        </div>
-      )}
-
-      <div className="project-info">
-        <div className="info-left">
-          <div className="brand">#RUBENS</div>
-          <div className="tagline">#WEBGL</div>
-          <div className="tech">BY MATD.EV</div>
-        </div>
-        <div className="info-right">
-          <div className="location">PARIS, FRANCE</div>
-          <div className="coords">48° 51&apos; 24.1212&apos;&apos; N / 2° 21&apos; 3.2484&apos;&apos; E</div>
-          <div className="status">&gt;LIVE</div>
-          <div className="indicator"></div>
-        </div>
-      </div>
-
-      {hoveredProject && hoveredImageUrl && (
-        <div 
-          className="project-label"
-          style={{
-            left: `${cursorPos.x + 20}px`,
-            top: `${cursorPos.y + 20}px`,
-          }}
-        >
-          <div className="project-thumbnail" style={{ backgroundImage: `url(${hoveredImageUrl})` }} />
-          <div className="project-name">{hoveredProject}</div>
-        </div>
-      )}
-
       <div className="whiteEdgeGradient" aria-hidden="true" />
+      {hoveredProject && (
+        <div
+          className="projectTooltip"
+          ref={tooltipElRef}
+          role="status"
+          aria-live="polite"
+        >
+          {hoveredProject}
+        </div>
+      )}
+
+      <div className="customCursor" ref={cursorElRef} aria-hidden="true" />
+
+      {showGui && <Leva />}
       <Loader />
     </div>
   );
 }
 
-useGLTF.preload("/models/rubens.glb");
+useGLTF.preload("/models/helmet.glb");
