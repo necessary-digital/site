@@ -12,10 +12,10 @@ export function BottomNav() {
   return (
     <nav className="bottomNav" aria-label="Pages">
       <Link className={onHelmet ? "isActive" : ""} href="/">
-        Helmet
+        Tube
       </Link>
       <Link className={onCodrop ? "isActive" : ""} href="/codrop">
-        Codrop
+        Sphere
       </Link>
       <Link className={onRubens ? "isActive" : ""} href="/rubens">
         Rubens
