@@ -1,113 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Loader, useGLTF, useTexture } from "@react-three/drei";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DoubleSide, Mesh, MeshPhysicalMaterial, Object3D, ShaderMaterial, Texture, Vector2 } from "three";
-
-function GridPlane({
-  targetCenterUv,
-}: {
-  targetCenterUv: React.MutableRefObject<Vector2>;
-}) {
-  const meshRef = useRef<Mesh>(null);
-  const uniforms = useMemo(
-    () => ({
-      uGridScale: { value: 28.0 },
-      uLineWidth: { value: 0.5 },
-      uEdgeWidth: { value: 0.14 },
-      uEdgeAmp: { value: 1.35 },
-      uCenterRadius: { value: 0.22 },
-      uCenterAmp: { value: 0.9 },
-      uCenter: { value: new Vector2(0.5, 0.5) },
-      uTime: { value: 0.0 },
-      uScrollSpeed: { value: 0.01 },
-      uResolution: { value: new Vector2(1, 1) },
-    }),
-    [],
-  );
-
-  useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const material = mesh.material as ShaderMaterial;
-
-    material.uniforms.uTime.value = state.clock.getElapsedTime();
-    (material.uniforms.uCenter.value as Vector2).lerp(targetCenterUv.current, 0.08);
-  });
-
-  return (
-    <mesh ref={meshRef} position={[0, 0, -5.2]}>
-      <planeGeometry args={[18, 18, 128, 128]} />
-      <shaderMaterial
-        attach="material"
-        args={[
-          {
-            uniforms,
-            vertexShader: /* glsl */ `
-              varying vec2 vUv;
-              
-              uniform float uEdgeWidth;
-              uniform float uEdgeAmp;
-              uniform float uCenterRadius;
-              uniform float uCenterAmp;
-              uniform vec2 uCenter;
-
-              void main() {
-                vUv = uv;
-
-                vec3 p = position;
-
-                float dEdge = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
-                float edgeMask = 1.0 - smoothstep(0.0, uEdgeWidth, dEdge);
-
-                float dCenter = distance(vUv, uCenter);
-                float centerMask = 1.0 - smoothstep(0.0, uCenterRadius, dCenter);
-
-                float zOffset = edgeMask * uEdgeAmp + centerMask * uCenterAmp;
-                p.z += zOffset;
-
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-              }
-            `,
-            fragmentShader: /* glsl */ `
-              varying vec2 vUv;
-              
-              uniform float uGridScale;
-              uniform float uLineWidth;
-              uniform float uTime;
-              uniform float uScrollSpeed;
-              uniform vec2 uResolution;
-
-              float gridLine(float coord, float width) {
-                float fw = fwidth(coord);
-                float p = abs(fract(coord - 0.5) - 0.5);
-                return 1.0 - smoothstep(width * fw, (width + 1.0) * fw, p);
-              }
-
-              void main() {
-                vec2 uv = (vUv + vec2(uTime * uScrollSpeed, 0.0)) * uGridScale;
-                float gx = gridLine(uv.x, uLineWidth);
-                float gy = gridLine(uv.y, uLineWidth);
-                float g = max(gx, gy);
-
-                vec3 base = vec3(0.);
-                vec3 line = vec3(0.1);
-                vec3 col = mix(base, line, g);
-                gl_FragColor = vec4(col, 1.);
-              }
-            `,
-            side: DoubleSide,
-          },
-        ]}
-      />
-    </mesh>
-  );
-}
+import { DoubleSide, Mesh, MeshPhysicalMaterial, Object3D, Texture } from "three";
 
 function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<number> }) {
   const helmet = useGLTF("/models/rubens.glb");
-  
+
   const scene = useMemo(() => helmet.scene.clone(true), [helmet.scene]);
   const modelRef = useRef<Object3D>(null);
   const baseRotation = useMemo(() => ({ x: Math.PI / 8, y: Math.PI / 2 }), []);
@@ -127,7 +28,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
     const scale = isMobile ? 0.042 : 0.05;
-    
+
     scene.traverse((object) => {
       if (object instanceof Mesh) {
         object.scale.set(scale, scale, scale);
@@ -150,10 +51,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
 
   return (
     <group ref={modelRef} rotation={[baseRotation.x, baseRotation.y, 0]}>
-      <primitive
-        object={scene}
-        position={[0.2, 0, -0.1]}
-      />
+      <primitive object={scene} position={[0.2, 0, -0.1]} />
     </group>
   );
 }
@@ -213,7 +111,7 @@ function ImageTube({
     const texture = textureIndex !== null ? textures[textureIndex] : null;
     const imageUrl = textureIndex !== null ? imageUrls[textureIndex] : null;
     onImageHover(projectName, texture, imageUrl);
-  }, [onImageHover, textures, imageUrls]);
+  }, [imageUrls, onImageHover, textures]);
 
   const cols = 6;
   const rows = 3;
@@ -256,7 +154,6 @@ function ImageTube({
       scrollTargetRef.current += loopHeight;
     }
 
-    // Lerp du multiplicateur de vitesse vers 0.05 si hover, sinon vers 1
     const targetMultiplier = isHovering.current ? 0.05 : 1;
     speedMultiplier.current += (targetMultiplier - speedMultiplier.current) * 0.1;
 
@@ -270,18 +167,7 @@ function ImageTube({
 
     const group = groupRef.current;
     if (!group) return;
-    
-    // // Animation de dispersion
-    // if (isDispersing) {
-    //   group.scale.x += (0.01 - group.scale.x) * 0.08;
-    //   group.scale.y += (0.01 - group.scale.y) * 0.08;
-    //   group.scale.z += (0.01 - group.scale.z) * 0.08;
-    // } else {
-    //   group.scale.x += (1 - group.scale.x) * 0.08;
-    //   group.scale.y += (1 - group.scale.y) * 0.08;
-    //   group.scale.z += (1 - group.scale.z) * 0.08;
-    // }
-    
+
     group.position.y = -scrollCurrent.current;
 
     for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
@@ -310,9 +196,9 @@ function ImageTube({
             const texIndex = (baseRow * cols + col) % imageUrls.length;
 
             return (
-              <mesh 
-                key={col} 
-                position={[x, 0, z]} 
+              <mesh
+                key={col}
+                position={[x, 0, z]}
                 rotation={[0, ry, 0]}
                 onPointerEnter={() => handleHover(projectNames[texIndex], texIndex)}
                 onPointerLeave={() => handleHover(null, null)}
@@ -330,7 +216,7 @@ function ImageTube({
 }
 
 export function RubensScene() {
-  const targetCenterUv = useRef(new Vector2(0.5, 0.5));
+  const containerRef = useRef<HTMLDivElement>(null);
   const tubeScrollTarget = useRef(0);
   const tubeSpinVelocity = useRef(0);
   const tubeNaturalDir = useRef(1);
@@ -339,36 +225,62 @@ export function RubensScene() {
   const [hoveredImageUrl, setHoveredImageUrl] = useState<string | null>(null);
   const [previousImageUrl, setPreviousImageUrl] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  const [selectedProject, setSelectedProject] = useState<{name: string, imageUrl: string, index: number} | null>(null);
+  const [selectedProject, setSelectedProject] = useState<{
+    name: string;
+    imageUrl: string;
+    index: number;
+  } | null>(null);
   const [showOverlay, setShowOverlay] = useState(false);
 
-  const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
+  const openOverlayTimeoutRef = useRef<number | null>(null);
+  const closeOverlayTimeoutRef = useRef<number | null>(null);
 
+  const cursorElRef = useRef<HTMLDivElement | null>(null);
+  const cursorTarget = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const cursorCurrent = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const cursorActive = useRef(false);
+  const cursorRaf = useRef<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const el = cursorElRef.current;
+      if (el) {
+        const lerp = 0.14;
+        cursorCurrent.current.x += (cursorTarget.current.x - cursorCurrent.current.x) * lerp;
+        cursorCurrent.current.y += (cursorTarget.current.y - cursorCurrent.current.y) * lerp;
+
+        const x = cursorCurrent.current.x + 8;
+        const y = cursorCurrent.current.y + 8;
+        el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%)`;
+        el.style.opacity = cursorActive.current ? "1" : "0";
+      }
+
+      cursorRaf.current = requestAnimationFrame(tick);
+    };
+
+    cursorRaf.current = requestAnimationFrame(tick);
+    return () => {
+      if (cursorRaf.current != null) cancelAnimationFrame(cursorRaf.current);
+    };
+  }, []);
+
+  const onPointerEnter = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    cursorTarget.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    cursorCurrent.current = { ...cursorTarget.current };
+    cursorActive.current = true;
+  }, []);
+
+  const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     setCursorPos({ x: event.clientX, y: event.clientY });
 
-    const nx = (event.clientX - rect.left) / rect.width;
-    const ny = (event.clientY - rect.top) / rect.height;
-    const clampedX = Math.min(1, Math.max(0, nx));
-    const clampedY = Math.min(1, Math.max(0, ny));
-
-    const uvX = clampedX;
-    const uvY = 1 - clampedY;
-
-    const strength = 0.4;
-    const cx = 0.5 + (uvX - 0.5) * strength;
-    const cy = 0.5 + (uvY - 0.5) * strength;
-
-    targetCenterUv.current.set(
-      Math.min(1, Math.max(0, cx)),
-      Math.min(1, Math.max(0, cy)),
-    );
-
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    cursorTarget.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }, []);
 
   const onPointerLeave = useCallback(() => {
-    targetCenterUv.current.set(0.5, 0.5);
+    cursorActive.current = false;
   }, []);
 
   const onWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
@@ -379,56 +291,73 @@ export function RubensScene() {
     else if (event.deltaY > 0) tubeNaturalDir.current = 1;
   }, []);
 
-  const handleImageHover = useCallback((projectName: string | null, _texture: Texture | null, imageUrl: string | null) => {
-    setHoveredProject(projectName);
-    if (imageUrl !== hoveredImageUrl) {
-      setPreviousImageUrl(hoveredImageUrl);
-      setHoveredImageUrl(imageUrl);
-    }
-  }, [hoveredImageUrl]);
+  const handleImageHover = useCallback(
+    (projectName: string | null, _texture: Texture | null, imageUrl: string | null) => {
+      setHoveredProject(projectName);
+      if (imageUrl !== hoveredImageUrl) {
+        setPreviousImageUrl(hoveredImageUrl);
+        setHoveredImageUrl(imageUrl);
+      }
+    },
+    [hoveredImageUrl],
+  );
 
-  const handleImageClick = useCallback((projectName: string, imageUrl: string, textureIndex: number) => {
-    setSelectedProject({ name: projectName, imageUrl, index: textureIndex });
-    // Attendre que la dispersion soit visible avant d'afficher l'overlay
-    setTimeout(() => {
-      setShowOverlay(true);
-    }, 1500);
-  }, []);
+  const handleImageClick = useCallback(
+    (projectName: string, imageUrl: string, textureIndex: number) => {
+      setSelectedProject({ name: projectName, imageUrl, index: textureIndex });
+
+      if (openOverlayTimeoutRef.current != null) window.clearTimeout(openOverlayTimeoutRef.current);
+      openOverlayTimeoutRef.current = window.setTimeout(() => {
+        setShowOverlay(true);
+      }, 1500);
+    },
+    [],
+  );
 
   const handleCloseProject = useCallback(() => {
     setShowOverlay(false);
-    setTimeout(() => {
+
+    if (closeOverlayTimeoutRef.current != null) window.clearTimeout(closeOverlayTimeoutRef.current);
+    closeOverlayTimeoutRef.current = window.setTimeout(() => {
       setSelectedProject(null);
-    }, 1200); // Attendre la fin de l'animation de retour
+    }, 1200);
   }, []);
 
-  // Nettoyer previousImageUrl après la transition
   useEffect(() => {
     if (hoveredImageUrl && previousImageUrl) {
       const timer = setTimeout(() => {
         setPreviousImageUrl(null);
-      }, 2000); // Correspond à la durée de l'animation
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [hoveredImageUrl, previousImageUrl]);
 
+  useEffect(() => {
+    return () => {
+      if (openOverlayTimeoutRef.current != null) window.clearTimeout(openOverlayTimeoutRef.current);
+      if (closeOverlayTimeoutRef.current != null) window.clearTimeout(closeOverlayTimeoutRef.current);
+    };
+  }, []);
+
   return (
     <div
       className="sceneRoot"
+      ref={containerRef}
+      onPointerEnter={onPointerEnter}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
       onWheel={onWheel}
     >
       <h1 className="main-title">RUBENS EXPERIENCE</h1>
-      
+
       {previousImageUrl && (
-        <div 
+        <div
           className="background-image-blur background-image-previous"
           style={{ backgroundImage: `url(${previousImageUrl})` }}
         />
       )}
       {hoveredImageUrl && (
-        <div 
+        <div
           className="background-image-blur background-image-current"
           style={{ backgroundImage: `url(${hoveredImageUrl})` }}
         />
@@ -464,13 +393,22 @@ export function RubensScene() {
       </Canvas>
 
       {selectedProject && (
-        <div 
-          className={`project-single-view ${showOverlay ? 'visible' : 'hidden'}`}
+        <div
+          className={`project-single-view ${showOverlay ? "visible" : "hidden"}`}
           style={{ backgroundImage: `url(${selectedProject.imageUrl})` }}
         >
-          <button className="close-button" onClick={handleCloseProject}>✕</button>
+          <button className="close-button" onClick={handleCloseProject}>
+            ✕
+          </button>
           <div className="project-content">
-            <img src={selectedProject.imageUrl} alt={selectedProject.name} />
+            <Image
+              src={selectedProject.imageUrl}
+              alt={selectedProject.name}
+              width={1200}
+              height={800}
+              sizes="(max-width: 768px) 90vw, 700px"
+              style={{ width: "100%", height: "auto" }}
+            />
             <h1>{selectedProject.name}</h1>
             <p>Description du projet {selectedProject.name}</p>
           </div>
@@ -483,16 +421,10 @@ export function RubensScene() {
           <div className="tagline">#WEBGL</div>
           <div className="tech">BY MATD.EV</div>
         </div>
-        <div className="info-right">
-          <div className="location">PARIS, FRANCE</div>
-          <div className="coords">48° 51&apos; 24.1212&apos;&apos; N / 2° 21&apos; 3.2484&apos;&apos; E</div>
-          <div className="status">&gt;LIVE</div>
-          <div className="indicator"></div>
-        </div>
       </div>
 
       {hoveredProject && hoveredImageUrl && (
-        <div 
+        <div
           className="project-label"
           style={{
             left: `${cursorPos.x + 20}px`,
@@ -505,6 +437,7 @@ export function RubensScene() {
       )}
 
       <div className="whiteEdgeGradient" aria-hidden="true" />
+      <div className="customCursor" ref={cursorElRef} aria-hidden="true" />
       <Loader />
     </div>
   );

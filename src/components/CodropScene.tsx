@@ -69,7 +69,7 @@ function GridPlaneLight({
         args={[
           {
             uniforms,
-            vertexShader: /* glsl */ `
+              vertexShader: `
               varying vec2 vUv;
               
               uniform float uEdgeWidth;
@@ -95,7 +95,7 @@ function GridPlaneLight({
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
               }
             `,
-            fragmentShader: /* glsl */ `
+              fragmentShader: `
               varying vec2 vUv;
               
               uniform float uGridScale;
@@ -304,13 +304,10 @@ function ImageSphere({
     if (angleXRef.current < -maxPitch) angleXRef.current = -maxPitch;
 
     if (snapActiveRef.current && !isDraggingRef.current) {
-      // Snap toward target angles (very smooth)
-      // - keep a strong lerp (small alpha) to avoid hard jumps
-      // - damp velocities progressively while snapping
       spinVelocityXRef.current *= 0.92;
       spinVelocityYRef.current *= 0.92;
 
-      const alpha = 1 - Math.pow(0.92, dt * 60); // framerate independent, ~0.08/frame @60fps
+      const alpha = 1 - Math.pow(0.92, dt * 60);
       angleXRef.current = stepAngle(angleXRef.current, snapTargetXRef.current, alpha, false);
       angleYRef.current = stepAngle(angleYRef.current, snapTargetYRef.current, alpha, true);
 
@@ -542,7 +539,6 @@ export function CodropScene() {
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // ignore
     }
   }, []);
 
@@ -601,7 +597,6 @@ export function CodropScene() {
       try {
         event.currentTarget.releasePointerCapture(pid);
       } catch {
-        // ignore
       }
     }
 

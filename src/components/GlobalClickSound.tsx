@@ -49,13 +49,11 @@ export function GlobalClickSound() {
     scrollAudioRef.current = scrollAudio;
 
     const onPointerDown = (event: PointerEvent) => {
-      // Only play for primary button clicks (ignore right click / pen barrel buttons)
       if (typeof (event as unknown as MouseEvent).button === "number") {
         const button = (event as unknown as MouseEvent).button;
         if (button !== 0) return;
       }
 
-      // Avoid double-trigger (some setups dispatch both pointerdown & click handlers)
       const now = performance.now();
       if (now - lastPointerDownAtRef.current < 25) return;
       lastPointerDownAtRef.current = now;
@@ -63,16 +61,14 @@ export function GlobalClickSound() {
       const pools = clickPoolsRef.current;
       if (!pools || pools.length === 0) return;
 
-      // Randomize between the two tracks
       const pool = pools[Math.floor(Math.random() * pools.length)];
       const audio = pool.clips[pool.nextIndex];
       pool.nextIndex = (pool.nextIndex + 1) % pool.clips.length;
 
       try {
         audio.currentTime = 0;
-        void audio.play();
+        audio.play().catch(() => {});
       } catch {
-        // ignore autoplay/interaction errors
       }
     };
 
@@ -84,25 +80,21 @@ export function GlobalClickSound() {
       const dtWheel = Math.min(0.05, Math.max(0.001, (now - lastWheelAtRef.current) / 1000));
       lastWheelAtRef.current = now;
 
-      // Linear intensity proxy based on wheel delta magnitude (more predictable/linear).
       const raw = Math.abs(event.deltaY);
       const clamped = Math.min(220, raw);
       wheelIntensityRef.current = approach(wheelIntensityRef.current, clamped, 900 * dtWheel);
       const normalized = Math.min(1, wheelIntensityRef.current / 120);
 
-      // Map intensity -> playback rate & volume (linear).
       const targetRate = 1 + normalized * 0.55;
       const targetVol = normalized * 0.32;
 
       scrollTargetRateRef.current = targetRate;
       scrollTargetVolRef.current = targetVol;
 
-      // Ensure audio is running (wheel events count as user interaction).
       if (scrollAudio.paused) {
         try {
-          void scrollAudio.play();
+          scrollAudio.play().catch(() => {});
         } catch {
-          // ignore
         }
       }
     };
@@ -119,14 +111,12 @@ export function GlobalClickSound() {
       const dt = Math.min(0.05, (now - lastRafAt) / 1000);
       lastRafAt = now;
 
-      // If wheel hasn't happened recently, decay targets back to rest.
       const sinceWheel = now - lastWheelAtRef.current;
       if (sinceWheel > 90) {
         scrollTargetVolRef.current = Math.max(0, scrollTargetVolRef.current - 0.9 * dt);
         scrollTargetRateRef.current = approach(scrollTargetRateRef.current, 1, 1.2 * dt);
       }
 
-      // Move toward targets with a constant max speed (more linear feel).
       scrollCurrentRateRef.current = approach(
         scrollCurrentRateRef.current,
         scrollTargetRateRef.current,
@@ -141,7 +131,6 @@ export function GlobalClickSound() {
       scrollAudio.playbackRate = scrollCurrentRateRef.current;
       scrollAudio.volume = scrollCurrentVolRef.current;
 
-      // Stop fully when it becomes inaudible.
       if (sinceWheel > 220 && scrollCurrentVolRef.current < 0.01) {
         scrollAudio.pause();
         scrollAudio.currentTime = 0;
