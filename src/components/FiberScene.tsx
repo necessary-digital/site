@@ -113,7 +113,7 @@ function GridPlane({
 }
 
 function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<number> }) {
-  const helmet = useGLTF("/models/helmet.glb");
+  const helmet = useGLTF("/models/logo-2.glb");
 
   const scene = useMemo(() => helmet.scene.clone(true), [helmet.scene]);
   const modelRef = useRef<Object3D>(null);
@@ -121,16 +121,17 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   const glassMaterial = useMemo(
     () =>
       new MeshPhysicalMaterial({
-        transmission: 1,
-        thickness: 10,
-        roughness: 0,
+        transmission: 0.9,
+        thickness: 1,
+        roughness: 0.1,
         metalness: 0.1,
         ior: 1.9,
-        dispersion: 1,
-        clearcoat: 0.1,
-        clearcoatRoughness: 1.1,
-        iridescenceThicknessRange: [100, 400],
-        color: "transparent",
+        clearcoat: 1,
+        clearcoatRoughness: 0,
+        iridescence: 1,
+        iridescenceIOR: 1.5,
+        iridescenceThicknessRange: [100, 800],
+        // color: "#B01329",
         transparent: true,
         depthWrite: true,
       }),
@@ -140,7 +141,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   useEffect(() => {
     scene.traverse((object) => {
       if (object instanceof Mesh) {
-        object.scale.set(0.7, 0.7, 0.7);
+        // object.scale.set(0.3, 0.3, 0.3);
         object.material = glassMaterial;
         object.material.needsUpdate = true;
       }
@@ -159,7 +160,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   });
 
   return (
-    <primitive ref={modelRef} object={scene} rotation={[baseRotation.x, baseRotation.y, 0]} />
+  <primitive ref={modelRef} object={scene} rotation={[baseRotation.x, baseRotation.y, 0]} scale={[0.003, 0.003, 0.003]} />
   );
 }
 
@@ -510,9 +511,10 @@ export function FiberScene() {
             <ambientLight intensity={0.5} />
             <directionalLight position={[5, 5, 5]} intensity={1} />
 
-            <Environment preset="studio" blur={10.5} />
+            <Environment preset="studio" blur={1} environmentIntensity={0.3}/>
+            <color attach="background" args={["#fff"]} />
 
-            <GridPlane targetCenterUv={targetCenterUv} />
+            {/* <GridPlane targetCenterUv={targetCenterUv} /> */}
 
             <ImageTube
               scrollTargetRef={tubeScrollTarget}
@@ -545,10 +547,10 @@ export function FiberScene() {
           </div>
         )}
 
-        <div className="customCursor" ref={cursorElRef} aria-hidden="true" />
+        {/* <div className="customCursor" ref={cursorElRef} aria-hidden="true" /> */}
         <Loader />
       </div>
     );
 }
 
-useGLTF.preload("/models/helmet.glb");
+useGLTF.preload("/models/logo-2.glb");

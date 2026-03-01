@@ -7,39 +7,39 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { DoubleSide, Mesh, MeshPhysicalMaterial, Object3D, Texture } from "three";
 
 function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<number> }) {
-  const helmet = useGLTF("/models/rubens.glb");
+  const helmet = useGLTF("/models/logo-2.glb");
 
   const scene = useMemo(() => helmet.scene.clone(true), [helmet.scene]);
   const modelRef = useRef<Object3D>(null);
-  const baseRotation = useMemo(() => ({ x: Math.PI / 8, y: Math.PI / 2 }), []);
+  const baseRotation = useMemo(() => ({ x: 0, y: 0 }), []);
   const glassMaterial = useMemo(
     () =>
       new MeshPhysicalMaterial({
-        color: "#613309",
-        metalness: 0.9,
-        roughness: 0.3,
-        envMapIntensity: 0.1,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.4,
+        transmission: 0.9,
+        thickness: 1,
+        roughness: 0.1,
+        metalness: 0.1,
+        ior: 1.9,
+        clearcoat: 1,
+        clearcoatRoughness: 0,
+        iridescence: 1,
+        iridescenceIOR: 1.5,
+        iridescenceThicknessRange: [100, 800],
+        // color: "#ff3333",
+        transparent: true,
+        depthWrite: true,
       }),
     [],
   );
 
   useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    const scale = isMobile ? 0.042 : 0.05;
-
     scene.traverse((object) => {
       if (object instanceof Mesh) {
-        object.scale.set(scale, scale, scale);
         object.material = glassMaterial;
         object.material.needsUpdate = true;
       }
     });
-
-    return () => {
-      glassMaterial.dispose();
-    };
+    return () => { glassMaterial.dispose(); };
   }, [scene, glassMaterial]);
 
   useFrame(() => {
@@ -50,9 +50,7 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   });
 
   return (
-    <group ref={modelRef} rotation={[baseRotation.x, baseRotation.y, 0]}>
-      <primitive object={scene} position={[0.2, 0, -0.1]} />
-    </group>
+    <primitive ref={modelRef} object={scene} rotation={[baseRotation.x, baseRotation.y, 0]} scale={[0.003, 0.003, 0.003]} />
   );
 }
 
@@ -80,13 +78,13 @@ function ImageTube({
 
   const imageUrls = useMemo(
     () => [
-      "/tube/img1.jpg",
-      "/tube/img3.jpg",
-      "/tube/img2.jpg",
-      "/tube/img4.jpg",
-      "/tube/img5.jpg",
-      "/tube/img6.jpg",
-      "/tube/img9.jpg",
+      "/tube/im1.jpg",
+      "/tube/im3.jpg",
+      "/tube/im2.jpg",
+      "/tube/im4.jpg",
+      "/tube/im5.jpg",
+      "/tube/im6.jpg",
+      "/tube/im9.jpg",
     ],
     [],
   );
@@ -184,9 +182,7 @@ function ImageTube({
         <group
           key={rowIndex}
           position={[0, y, 0]}
-          ref={(obj) => {
-            rowGroupRefs.current[rowIndex] = obj;
-          }}
+          ref={(obj) => { rowGroupRefs.current[rowIndex] = obj; }}
         >
           {Array.from({ length: cols }).map((_, col) => {
             const theta = ((col + rowOffset) / cols) * Math.PI * 2;
@@ -248,20 +244,15 @@ export function RubensScene() {
         const lerp = 0.14;
         cursorCurrent.current.x += (cursorTarget.current.x - cursorCurrent.current.x) * lerp;
         cursorCurrent.current.y += (cursorTarget.current.y - cursorCurrent.current.y) * lerp;
-
         const x = cursorCurrent.current.x + 8;
         const y = cursorCurrent.current.y + 8;
         el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%)`;
         el.style.opacity = cursorActive.current ? "1" : "0";
       }
-
       cursorRaf.current = requestAnimationFrame(tick);
     };
-
     cursorRaf.current = requestAnimationFrame(tick);
-    return () => {
-      if (cursorRaf.current != null) cancelAnimationFrame(cursorRaf.current);
-    };
+    return () => { if (cursorRaf.current != null) cancelAnimationFrame(cursorRaf.current); };
   }, []);
 
   const onPointerEnter = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -273,7 +264,6 @@ export function RubensScene() {
 
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     setCursorPos({ x: event.clientX, y: event.clientY });
-
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     cursorTarget.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -286,7 +276,6 @@ export function RubensScene() {
   const onWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     tubeScrollTarget.current += event.deltaY * 0.002;
     tubeSpinVelocity.current += event.deltaY * 0.004;
-
     if (event.deltaY < 0) tubeNaturalDir.current = -1;
     else if (event.deltaY > 0) tubeNaturalDir.current = 1;
   }, []);
@@ -305,38 +294,16 @@ export function RubensScene() {
   const handleImageClick = useCallback(
     (projectName: string, imageUrl: string, textureIndex: number) => {
       setSelectedProject({ name: projectName, imageUrl, index: textureIndex });
-
       if (openOverlayTimeoutRef.current != null) window.clearTimeout(openOverlayTimeoutRef.current);
-      openOverlayTimeoutRef.current = window.setTimeout(() => {
-        setShowOverlay(true);
-      }, 1500);
+      openOverlayTimeoutRef.current = window.setTimeout(() => setShowOverlay(true), 1500);
     },
     [],
   );
 
   const handleCloseProject = useCallback(() => {
     setShowOverlay(false);
-
     if (closeOverlayTimeoutRef.current != null) window.clearTimeout(closeOverlayTimeoutRef.current);
-    closeOverlayTimeoutRef.current = window.setTimeout(() => {
-      setSelectedProject(null);
-    }, 1200);
-  }, []);
-
-  useEffect(() => {
-    if (hoveredImageUrl && previousImageUrl) {
-      const timer = setTimeout(() => {
-        setPreviousImageUrl(null);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [hoveredImageUrl, previousImageUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (openOverlayTimeoutRef.current != null) window.clearTimeout(openOverlayTimeoutRef.current);
-      if (closeOverlayTimeoutRef.current != null) window.clearTimeout(closeOverlayTimeoutRef.current);
-    };
+    closeOverlayTimeoutRef.current = window.setTimeout(() => setSelectedProject(null), 1200);
   }, []);
 
   return (
@@ -348,19 +315,11 @@ export function RubensScene() {
       onPointerLeave={onPointerLeave}
       onWheel={onWheel}
     >
-      <h1 className="main-title">RUBENS EXPERIENCE</h1>
-
       {previousImageUrl && (
-        <div
-          className="background-image-blur background-image-previous"
-          style={{ backgroundImage: `url(${previousImageUrl})` }}
-        />
+        <div className="background-image-blur background-image-previous" style={{ backgroundImage: `url(${previousImageUrl})` }} />
       )}
       {hoveredImageUrl && (
-        <div
-          className="background-image-blur background-image-current"
-          style={{ backgroundImage: `url(${hoveredImageUrl})` }}
-        />
+        <div className="background-image-blur background-image-current" style={{ backgroundImage: `url(${hoveredImageUrl})` }} />
       )}
 
       <Canvas
@@ -376,8 +335,8 @@ export function RubensScene() {
         <Suspense fallback={null}>
           <ambientLight intensity={0.5} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
-
-          <Environment preset="studio" blur={10.5} />
+          <Environment preset="studio" blur={1} environmentIntensity={0.3} />
+          <color attach="background" args={["#fff"]} />
 
           <ImageTube
             scrollTargetRef={tubeScrollTarget}
@@ -397,9 +356,7 @@ export function RubensScene() {
           className={`project-single-view ${showOverlay ? "visible" : "hidden"}`}
           style={{ backgroundImage: `url(${selectedProject.imageUrl})` }}
         >
-          <button className="close-button" onClick={handleCloseProject}>
-            ✕
-          </button>
+          <button className="close-button" onClick={handleCloseProject}>✕</button>
           <div className="project-content">
             <Image
               src={selectedProject.imageUrl}
@@ -415,7 +372,7 @@ export function RubensScene() {
         </div>
       )}
 
-      <div className="project-info">
+      {/* <div className="project-info">
         <div className="info-left">
           <div className="brand">#RUBENS</div>
           <div className="tagline">#WEBGL</div>
@@ -426,21 +383,18 @@ export function RubensScene() {
       {hoveredProject && hoveredImageUrl && (
         <div
           className="project-label"
-          style={{
-            left: `${cursorPos.x + 20}px`,
-            top: `${cursorPos.y + 20}px`,
-          }}
+          style={{ left: `${cursorPos.x + 20}px`, top: `${cursorPos.y + 20}px` }}
         >
           <div className="project-thumbnail" style={{ backgroundImage: `url(${hoveredImageUrl})` }} />
           <div className="project-name">{hoveredProject}</div>
         </div>
-      )}
+      )} */}
 
       <div className="whiteEdgeGradient" aria-hidden="true" />
-      <div className="customCursor" ref={cursorElRef} aria-hidden="true" />
-      <Loader />
+      {/* <div className="customCursor" ref={cursorElRef} aria-hidden="true" /> */}
+      {/* <Loader /> */}
     </div>
   );
 }
 
-useGLTF.preload("/models/rubens.glb");
+useGLTF.preload("/models/logo-2.glb");
