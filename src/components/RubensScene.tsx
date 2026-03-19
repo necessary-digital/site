@@ -15,19 +15,19 @@ function HelmetModel({ tubeAngleRef }: { tubeAngleRef: React.MutableRefObject<nu
   const glassMaterial = useMemo(
     () =>
       new MeshPhysicalMaterial({
-        transmission: 0.9,
-        thickness: 1,
-        roughness: 0.1,
-        metalness: 0.1,
-        ior: 1.9,
+        transmission: 1,
+        thickness: 2,
+        roughness: 0,
+        metalness: 0,
+        ior: 1.5,
         clearcoat: 1,
         clearcoatRoughness: 0,
-        iridescence: 1,
-        iridescenceIOR: 1.5,
-        iridescenceThicknessRange: [100, 800],
-        // color: "#ff3333",
+        iridescence: 0.8,
+        iridescenceIOR: 1.8,
+        iridescenceThicknessRange: [200, 1000],
         transparent: true,
-        depthWrite: true,
+        depthWrite: false,
+        side: DoubleSide,
       }),
     [],
   );
@@ -78,13 +78,13 @@ function ImageTube({
 
   const imageUrls = useMemo(
     () => [
-      "/tube/im1.jpg",
-      "/tube/im3.jpg",
-      "/tube/im2.jpg",
-      "/tube/im4.jpg",
-      "/tube/im5.jpg",
-      "/tube/im6.jpg",
-      "/tube/im9.jpg",
+      "/tube/test.png",
+      "/tube/test.png",
+      "/tube/test.png",
+      "/tube/test.png",
+      "/tube/test.png",
+      "/tube/test.png",
+      "/tube/test.png",
     ],
     [],
   );
@@ -114,8 +114,8 @@ function ImageTube({
   const cols = 6;
   const rows = 3;
   const radius = 4;
-  const tileW = 0.72;
-  const tileH = 1;
+  const tileW = 1;
+  const tileH = 0.75;
   const ySpacing = 2.7;
   const loopHeight = rows * ySpacing;
   const repeatCount = 3;
@@ -333,11 +333,11 @@ export function RubensScene() {
         }}
       >
         <Suspense fallback={null}>
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[5, 5, 5]} intensity={1} />
-          <Environment preset="studio" blur={1} environmentIntensity={0.3} />
+          <ambientLight intensity={1} />
+          <directionalLight position={[5, 5, 5]} intensity={3} />
+          <directionalLight position={[-5, 5, -5]} intensity={2} />
+          <Environment preset="city" blur={1} environmentIntensity={2} />
           <color attach="background" args={["#fff"]} />
-
           <ImageTube
             scrollTargetRef={tubeScrollTarget}
             spinVelocityRef={tubeSpinVelocity}
